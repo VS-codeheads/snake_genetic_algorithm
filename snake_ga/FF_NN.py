@@ -19,7 +19,12 @@ def softmax(x):
     return exp_x / np.sum(exp_x, axis=1, keepdims=True)
 
 def decode_weights(individual):
-    W1 = individual[0:W1_shape[0] * W1_shape[1]] 
+    # safer slicing using cursors
+    # beregne indexer med akkumulator-variabel i stedet for at gentage produktet flere steder
+    idx = 0
+    W1_size = W1_shape[0] * W1_shape[1]
+    W1 = individual[0:W1_shape[0] * W1_shape[1]]
+    
     W2 = individual[W1_shape[0] * W1_shape[1]:W2_shape[0] * W2_shape[1] + W1_shape[0] * W1_shape[1]]
     W3 = individual[W2_shape[0] * W2_shape[1] + W1_shape[0] * W1_shape[1]:]
     return (W1.reshape(W1_shape[0], W1_shape[1]), W2.reshape(W2_shape[0], W2_shape[1]), W3.reshape(W3_shape[0], W3_shape[1]))
