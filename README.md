@@ -1,2 +1,6 @@
 # snake_genetic_algorithm
-Genetic Algorithm to train agent on Snake Game
+DQN to train agent on Snake Game
+
+create virtual environment to play the game.
+
+run the game and see your score 
