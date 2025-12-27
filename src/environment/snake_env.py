@@ -5,6 +5,11 @@ import pygame
 from snake_game import SnakeGame, Snake, Food, Vector
 
 class SnakeEnvironment:
+
+    ACTION_LEFT = 0
+    ACTION_RIGHT = 1
+    ACTION_UP = 2
+    ACTION_DOWN = 3
     
     def __init__(self, render=False):
         self.render = render
@@ -41,14 +46,13 @@ class SnakeEnvironment:
         return self._get_state()
     
     def _apply_action(self, action):
-        # 0 = left, 1 = right, 2 = up, 3 = down
-        if action == 0:
+        if action == self.ACTION_LEFT:
             self.snake.v = Vector(-1, 0)
-        elif action == 1:
+        elif action == self.ACTION_RIGHT:
             self.snake.v = Vector(1, 0)
-        elif action == 2:
+        elif action == self.ACTION_UP:
             self.snake.v = Vector(0, -1)
-        elif action == 3:
+        elif action == self.ACTION_DOWN:
             self.snake.v = Vector(0, 1)
 
     def step(self, action):
@@ -62,6 +66,7 @@ class SnakeEnvironment:
         self.snake.move()
 
         reward = 0.0
+
 
         # Checking for wall collision
         if not self.snake.p.within(self.game.grid):
