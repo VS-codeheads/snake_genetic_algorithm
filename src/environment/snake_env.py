@@ -2,23 +2,56 @@ import random
 from collections import deque
 import numpy as np
 import pygame
-from snake_game import SnakeGame, Snake, Food, Vector
+from src.environment.snake_game import SnakeGame, Snake, Food, Vector
+
 
 class SnakeEnvironment:
+    """
+    SnakeEnvironment wrapper for DQN training.
+    Provides feature-based state representation with 11 features:
+    [food_dx, food_dy, danger_left, danger_front, danger_right,
+     direction_left, direction_right, direction_up, direction_down,
+     snake_length_normalized]
+    """
 
     ACTION_LEFT = 0
     ACTION_RIGHT = 1
     ACTION_UP = 2
     ACTION_DOWN = 3
     
-    def __init__(self, render=False):
+    # Direction vectors
+    DIRECTION_MAP = {
+        ACTION_LEFT: Vector(-1, 0),
+        ACTION_RIGHT: Vector(1, 0),
+        ACTION_UP: Vector(0, -1),
+        ACTION_DOWN: Vector(0, 1),
+    }
+    
+    def __init__(self, grid_size=30, render=False, seed=None):
+        """
+        Initialize Snake environment.
+        
+        Args:
+            grid_size: Size of the game grid (grid_size x grid_size)
+            render: Whether to render the game
+            seed: Random seed for reproducibility
+        """
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
+        
         self.render = render
-        self.game = SnakeGame()
+        self.grid_size = grid_size
+        self.game = SnakeGame(xsize=grid_size, ysize=grid_size, scale=15)
         self.snake = None
         self.food = None
         self.done = False
+        self.max_snake_length = grid_size * grid_size // 2  # Reasonable max length
+        self.last_direction = Vector(1, 0)  # Track current direction
+        self.step_count = 0  # Track steps in episode
 
     def _render(self):
+        """Render the current game state."""
         self.game.screen.fill("black")
 
         for i, p in enumerate(self.snake.body):
@@ -40,24 +73,144 @@ class SnakeEnvironment:
                 self.done = True
 
     def reset(self):
+        """Reset environment for a new episode."""
         self.snake = Snake(game=self.game)
         self.food = Food(game=self.game)
         self.done = False
+        # Initialize snake with a default direction (moving right)
+        self.last_direction = Vector(1, 0)
+        self.snake.v = Vector(1, 0)  # Set initial velocity
+        self.step_count = 0
         return self._get_state()
     
     def _apply_action(self, action):
-        if action == self.ACTION_LEFT:
-            self.snake.v = Vector(-1, 0)
-        elif action == self.ACTION_RIGHT:
-            self.snake.v = Vector(1, 0)
-        elif action == self.ACTION_UP:
-            self.snake.v = Vector(0, -1)
-        elif action == self.ACTION_DOWN:
-            self.snake.v = Vector(0, 1)
+        """Apply action to update snake direction."""
+        direction = self.DIRECTION_MAP[action]
+        
+        # Prevent 180-degree turns (going back into itself)
+        if not self._is_opposite_direction(self.last_direction, direction):
+            self.snake.v = direction
+            self.last_direction = direction
+        else:
+            # Keep last direction if move is invalid
+            self.snake.v = self.last_direction
+
+    @staticmethod
+    def _is_opposite_direction(current: Vector, next_dir: Vector) -> bool:
+        """Check if next_dir is opposite to current direction."""
+        return (current.x == -next_dir.x and current.y == -next_dir.y)
+
+    def _get_danger_sensors(self):
+        """
+        Get binary danger sensors for left, front, right directions relative to snake's current direction.
+        Returns: [danger_left, danger_front, danger_right]
+        """
+        head = self.snake.p
+        direction = self.snake.v
+        
+        # If snake hasn't started moving yet, use last_direction
+        if direction.x == 0 and direction.y == 0:
+            direction = self.last_direction
+        
+        # Calculate perpendicular directions (left and right relative to movement)
+        # If moving right (1, 0), left is up (0, -1), right is down (0, 1)
+        left_dir = Vector(direction.y, -direction.x)
+        right_dir = Vector(-direction.y, direction.x)
+        
+        # Check positions one step ahead in each direction
+        left_pos = head + left_dir
+        front_pos = head + direction
+        right_pos = head + right_dir
+        
+        danger_left = not left_pos.within(self.game.grid) or left_pos in self.snake.body
+        danger_front = not front_pos.within(self.game.grid) or front_pos in self.snake.body
+        danger_right = not right_pos.within(self.game.grid) or right_pos in self.snake.body
+        
+        return [float(danger_left), float(danger_front), float(danger_right)]
+
+    def _get_direction_onehot(self):
+        """
+        Get one-hot encoding of current snake direction.
+        Returns: [is_left, is_right, is_up, is_down]
+        """
+        direction = self.snake.v
+        
+        # If snake hasn't started moving yet, use last_direction
+        if direction.x == 0 and direction.y == 0:
+            direction = self.last_direction
+        
+        direction_encoding = [0.0, 0.0, 0.0, 0.0]
+        
+        if direction.x == -1:  # Left
+            direction_encoding[0] = 1.0
+        elif direction.x == 1:  # Right
+            direction_encoding[1] = 1.0
+        elif direction.y == -1:  # Up
+            direction_encoding[2] = 1.0
+        elif direction.y == 1:  # Down
+            direction_encoding[3] = 1.0
+        
+        return direction_encoding
+
+    def _get_state(self):
+        """
+        Get feature-based state representation (11 features).
+        
+        Features:
+        [0-1]: food_dx, food_dy - Normalized relative food position
+        [2-4]: danger_left, danger_front, danger_right - Binary collision sensors
+        [5-8]: direction_left, direction_right, direction_up, direction_down - One-hot direction
+        [9-10]: snake_length_normalized, moves_since_food - Additional features
+        
+        Returns:
+            np.ndarray: Feature vector of shape (11,) with dtype float32
+        """
+        head = self.snake.p
+        
+        # Feature 0-1: Relative food position (normalized to [-2, 2] range)
+        food_dx = (self.food.p.x - head.x) / self.grid_size * 2
+        food_dy = (self.food.p.y - head.y) / self.grid_size * 2
+        
+        # Feature 2-4: Danger sensors
+        danger_sensors = self._get_danger_sensors()
+        
+        # Feature 5-8: Direction one-hot
+        direction_onehot = self._get_direction_onehot()
+        
+        # Feature 9: Normalized snake length
+        snake_length_normalized = len(self.snake.body) / self.max_snake_length
+        
+        # Feature 10: Steps normalized (encourages efficiency)
+        steps_normalized = min(self.step_count / 1000.0, 1.0)
+        
+        # Combine all features
+        state = np.array(
+            [food_dx, food_dy] + 
+            danger_sensors + 
+            direction_onehot + 
+            [snake_length_normalized, steps_normalized],
+            dtype=np.float32
+        )
+        
+        return state
 
     def step(self, action):
+        """
+        Execute one step in the environment.
+        
+        Args:
+            action: Integer in [0, 3] representing direction
+            
+        Returns:
+            tuple: (state, reward, done) where:
+                - state: np.ndarray of shape (11,)
+                - reward: float
+                - done: bool
+        """
         if self.done:
             raise RuntimeError("Episode has ended. Please reset the environment.")
+        
+        self.step_count += 1
         
         # Agent takes action
         self._apply_action(action)
@@ -67,39 +220,38 @@ class SnakeEnvironment:
 
         reward = 0.0
 
-
         # Checking for wall collision
         if not self.snake.p.within(self.game.grid):
             self.done = True
-            reward = -1.0
+            reward = -10.0
             
         # Checking for self collision
         elif self.snake.cross_own_tail:
             self.done = True
-            reward = -1.0
+            reward = -10.0
         
+        # Checking for food consumption
         elif self.snake.p == self.food.p:
             self.snake.add_score()
             self.food = Food(game=self.game)  # Spawn new food
-            reward = 1.0
+            reward = 10.0
+        else:
+            # Small negative reward to encourage finding food quickly
+            reward = -0.01
 
         if self.render:
             self._render()
 
         return self._get_state(), reward, self.done
 
-    def _get_state(self):
-        return np.array([0], dtype=np.float32)  # Placeholder for state representation
-    # will be replaced with actual state representation logic (feature based state and CNN grid)
+    def get_state_shape(self):
+        """Return the shape of the state representation."""
+        return (11,)
 
+    def get_num_actions(self):
+        """Return the number of possible actions."""
+        return 4
 
-# Test with a random agent 
-env = SnakeEnvironment(render=True)
-state = env.reset()
-
-done = False
-while not done:
-    action = np.random.randint(0, 4)
-    state, reward, done = env.step(action)
-
-print("Episode finished")
+    def get_score(self):
+        """Return current snake score."""
+        return self.snake.score if self.snake else 0
