@@ -16,7 +16,10 @@ class Vector:
         return Vector(self.x + other.x, self.y + other.y)
 
     def within(self, scope: 'Vector') -> bool:
-        return self.x <= scope.x and self.x >= 0 and self.y <= scope.y and self.y >= 0
+        return (
+            0 <= self.x < scope.x and
+            0 <= self.y < scope.y
+        )
 
     def __eq__(self, other: 'Vector') -> bool:
         return self.x == other.x and self.y == other.y

@@ -1,4 +1,3 @@
-# src/config.py
 """
 Configuration parameters for DQN Snake training experiments.
 """

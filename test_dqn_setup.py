@@ -1,4 +1,3 @@
-# test_dqn_setup.py
 """
 Test script to verify DQN setup before full training.
 """
@@ -76,10 +75,10 @@ try:
     for i, (name, value) in enumerate(zip(feature_names, state)):
         print(f"     [{i}] {name:12s} = {value:6.3f}")
     
-    if state.shape[0] != 11:
-        print(f"   ✗ Expected 11 features, got {state.shape[0]}")
+    if state.shape[0] != 10:
+        print(f"   ✗ Expected 10 features, got {state.shape[0]}")
         sys.exit(1)
-    print(f"   ✓ State has correct shape (11 features)")
+    print(f"   ✓ State has correct shape (10 features)")
 except Exception as e:
     print(f"   ✗ Failed: {e}")
     import traceback
@@ -185,7 +184,7 @@ try:
     from src.agents.dqn_feature import DQNFeatureAgent
     
     agent = DQNFeatureAgent(
-        state_size=11,
+        state_size=10,
         action_size=4,
         device=device,
         seed=42
@@ -212,7 +211,7 @@ except Exception as e:
 print("\n10. Running mini training loop (20 episodes)...")
 try:
     env = SnakeEnvironment(grid_size=20, render=False, seed=42)  # Smaller grid for speed
-    agent = DQNFeatureAgent(state_size=11, action_size=4, device=device, seed=42)
+    agent = DQNFeatureAgent(state_size=10, action_size=4, device=device, seed=42)
     
     scores = []
     for episode in range(20):

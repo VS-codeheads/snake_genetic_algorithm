@@ -1,4 +1,3 @@
-# src/agents/random_agent.py
 """
 Random baseline agent for Snake game.
 """

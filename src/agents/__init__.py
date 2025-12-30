@@ -1,4 +1,3 @@
-# src/agents/__init__.py
 """Agents module."""
 
 from src.agents.dqn_feature import DQNFeatureAgent

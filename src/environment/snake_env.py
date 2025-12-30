@@ -8,7 +8,7 @@ from src.environment.snake_game import SnakeGame, Snake, Food, Vector
 class SnakeEnvironment:
     """
     SnakeEnvironment wrapper for DQN training.
-    Provides feature-based state representation with 11 features:
+    Provides feature-based state representation with 0 features:
     [food_dx, food_dy, danger_left, danger_front, danger_right,
      direction_left, direction_right, direction_up, direction_down,
      snake_length_normalized]
@@ -48,7 +48,7 @@ class SnakeEnvironment:
         self.done = False
         self.max_snake_length = grid_size * grid_size // 2  # Reasonable max length
         self.last_direction = Vector(1, 0)  # Track current direction
-        self.step_count = 0  # Track steps in episode
+        # self.step_count = 0  # Track steps in episode ! Not used in 10-feature representation
 
     def _render(self):
         """Render the current game state."""
@@ -80,7 +80,7 @@ class SnakeEnvironment:
         # Initialize snake with a default direction (moving right)
         self.last_direction = Vector(1, 0)
         self.snake.v = Vector(1, 0)  # Set initial velocity
-        self.step_count = 0
+        # self.step_count = 0 - ! Not used in 10-feature representation
         return self._get_state()
     
     def _apply_action(self, action):
@@ -154,16 +154,16 @@ class SnakeEnvironment:
 
     def _get_state(self):
         """
-        Get feature-based state representation (11 features).
+        Get feature-based state representation (10 features).
         
         Features:
         [0-1]: food_dx, food_dy - Normalized relative food position
         [2-4]: danger_left, danger_front, danger_right - Binary collision sensors
         [5-8]: direction_left, direction_right, direction_up, direction_down - One-hot direction
-        [9-10]: snake_length_normalized, moves_since_food - Additional features
+        [9-10]: snake_length_normalized
         
         Returns:
-            np.ndarray: Feature vector of shape (11,) with dtype float32
+            np.ndarray: Feature vector of shape (10,) with dtype float32
         """
         head = self.snake.p
         
@@ -181,14 +181,14 @@ class SnakeEnvironment:
         snake_length_normalized = len(self.snake.body) / self.max_snake_length
         
         # Feature 10: Steps normalized (encourages efficiency)
-        steps_normalized = min(self.step_count / 1000.0, 1.0)
+        #steps_normalized = min(self.step_count / 1000.0, 1.0)  ! This is an extra feature - introduces 11 featues which we do not work with in cnn
         
         # Combine all features
         state = np.array(
             [food_dx, food_dy] + 
             danger_sensors + 
             direction_onehot + 
-            [snake_length_normalized, steps_normalized],
+            [snake_length_normalized], # + [steps_normalized]  ! This is the 11th feature - breaks the “representation-only difference” claim in synopsis
             dtype=np.float32
         )
         
@@ -203,14 +203,14 @@ class SnakeEnvironment:
             
         Returns:
             tuple: (state, reward, done) where:
-                - state: np.ndarray of shape (11,)
+                - state: np.ndarray of shape (10,)
                 - reward: float
                 - done: bool
         """
         if self.done:
             raise RuntimeError("Episode has ended. Please reset the environment.")
         
-        self.step_count += 1
+        # self.step_count += 1 ! Not used in 10-feature representation
         
         # Agent takes action
         self._apply_action(action)
@@ -220,24 +220,18 @@ class SnakeEnvironment:
 
         reward = 0.0
 
-        # Checking for wall collision
         if not self.snake.p.within(self.game.grid):
             self.done = True
-            reward = -10.0
-            
-        # Checking for self collision
+            reward = -1.0
+
         elif self.snake.cross_own_tail:
             self.done = True
-            reward = -10.0
-        
-        # Checking for food consumption
+            reward = -1.0
+
         elif self.snake.p == self.food.p:
             self.snake.add_score()
-            self.food = Food(game=self.game)  # Spawn new food
-            reward = 10.0
-        else:
-            # Small negative reward to encourage finding food quickly
-            reward = -0.01
+            self.food = Food(game=self.game)
+            reward = +1.0
 
         if self.render:
             self._render()
@@ -246,7 +240,7 @@ class SnakeEnvironment:
 
     def get_state_shape(self):
         """Return the shape of the state representation."""
-        return (11,)
+        return (10,)
 
     def get_num_actions(self):
         """Return the number of possible actions."""
@@ -255,3 +249,35 @@ class SnakeEnvironment:
     def get_score(self):
         """Return current snake score."""
         return self.snake.score if self.snake else 0
+    
+
+    def get_grid_state(self):
+        """
+        This is the CNN based grid state representation.
+        Shape: (3, grid_size, grid_size)
+        """
+        grid = np.zeros((3, self.grid_size, self.grid_size), dtype=np.float32)
+
+        # Snake body
+        for segment in self.snake.body:
+            if segment.within(self.game.grid):
+                grid[0, segment.y, segment.x] = 1.0
+
+        # Snake head
+        head = self.snake.p
+        if head.within(self.game.grid):
+            grid[1, head.y, head.x] = 1.0
+
+        # Food
+        food = self.food.p
+        if food.within(self.game.grid):
+            grid[2, food.y, food.x] = 1.0
+
+        return grid
+    
+
+env = SnakeEnvironment(render=False)
+state = env.reset()
+
+print(state)
+print(state.shape)

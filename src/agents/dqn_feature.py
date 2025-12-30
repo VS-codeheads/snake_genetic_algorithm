@@ -1,4 +1,3 @@
-# src/agents/dqn_feature.py
 """
 DQN Agent with feature-based state representation.
 """
@@ -15,7 +14,7 @@ import src.config as config
 class FeatureNetwork(nn.Module):
     """
     Feed-forward neural network for feature-based state representation.
-    Input: 11 features
+    Input: 10 features
     Output: Q-values for 4 actions
     """
     
@@ -24,7 +23,7 @@ class FeatureNetwork(nn.Module):
         Initialize network.
         
         Args:
-            state_size: Dimension of state (11 for feature-based)
+            state_size: Dimension of state (10 for feature-based)
             action_size: Number of actions (4)
             hidden_layers: List of hidden layer sizes
         """
@@ -54,7 +53,7 @@ class DQNFeatureAgent:
     DQN Agent using feature-based state representation.
     """
     
-    def __init__(self, state_size=11, action_size=4, device='cpu', seed=None):
+    def __init__(self, state_size=10, action_size=4, device='cpu', seed=None):
         """
         Initialize DQN agent.
         
