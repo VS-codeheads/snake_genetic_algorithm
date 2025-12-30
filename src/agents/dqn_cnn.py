@@ -134,3 +134,11 @@ class DQNCNNAgent:
             "epsilon": self.epsilon,
             "episode_count": self.episode_count,
         }, filepath)
+
+    def load(self, filepath):
+        checkpoint = torch.load(filepath, map_location=self.device)
+        self.policy_net.load_state_dict(checkpoint["policy_net"])
+        self.target_net.load_state_dict(checkpoint["target_net"])
+        self.optimizer.load_state_dict(checkpoint["optimizer"])
+        self.epsilon = checkpoint.get("epsilon", config.EPSILON_END)
+        self.episode_count = checkpoint.get("episode_count", 0)
