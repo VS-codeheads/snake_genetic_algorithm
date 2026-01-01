@@ -46,7 +46,7 @@ def evaluate_agent(agent, env, num_episodes=100):
     }
 
 
-def train_dqn_cnn(seed=42, save_dir="results/dqn_cnn"):
+def train_dqn_cnn(seed=42, save_dir="results/dqn_cnn", resume_from=None):
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(f"{save_dir}/checkpoints", exist_ok=True)
 
@@ -64,7 +64,16 @@ def train_dqn_cnn(seed=42, save_dir="results/dqn_cnn"):
         action_size=4,
         device=device,
         seed=seed
-)
+    )
+
+    if resume_from is not None:
+        print(f"Resuming training from {resume_from}")
+        checkpoint = torch.load(resume_from, map_location=device)
+        agent.policy_net.load_state_dict(checkpoint["policy_net"])
+        agent.target_net.load_state_dict(checkpoint["target_net"])
+        agent.optimizer.load_state_dict(checkpoint["optimizer"])
+        agent.epsilon = checkpoint["epsilon"]
+        agent.episode_count = checkpoint["episode_count"]
 
     episode_scores = []
     episode_steps = []
@@ -72,7 +81,8 @@ def train_dqn_cnn(seed=42, save_dir="results/dqn_cnn"):
 
     print(f"Starting CNN training with seed {seed}")
 
-    for episode in range(config.TOTAL_EPISODES):
+    start_episode = agent.episode_count
+    for episode in range(start_episode, config.TOTAL_EPISODES):
         env.reset()
         state = env.get_grid_state()
         done = False
@@ -158,11 +168,13 @@ def train_dqn_cnn(seed=42, save_dir="results/dqn_cnn"):
     with open(f"{save_dir}/results_seed{seed}.json", "w") as f:
         json.dump(results, f, indent=2)
     
-    
+
     print("Training completed.")
     return results
 
 
 if __name__ == "__main__":
-    for seed in config.RANDOM_SEEDS:
-        train_dqn_cnn(seed=seed)
+    train_dqn_cnn(
+        seed=42,
+        resume_from="results/dqn_cnn/checkpoints/dqn_cnn_seed42_ep10000.pt"
+    )

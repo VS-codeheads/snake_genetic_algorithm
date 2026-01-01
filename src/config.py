@@ -7,7 +7,7 @@ GRID_SIZE = 30
 MAX_STEPS_PER_EPISODE = 1000  # Prevent infinite loops
 
 # Training Configuration
-TOTAL_EPISODES = 5000
+TOTAL_EPISODES = 10000
 EVAL_INTERVAL = 1000  # Evaluate every 1000 episodes
 EVAL_EPISODES = 100  # Number of episodes for evaluation
 NUM_SEEDS = 3  # Number of random seeds to run

@@ -32,6 +32,7 @@ class CNNNetwork(nn.Module):
         x = x.view(x.size(0), -1)
         return self.fc(x)
     
+    
 
 class DQNCNNAgent:
     """
@@ -125,6 +126,22 @@ class DQNCNNAgent:
             self.epsilon = config.EPSILON_START - decay * self.episode_count
         else:
             self.epsilon = config.EPSILON_END
+
+    def load(self, filepath):
+        """Load model checkpoint."""
+        checkpoint = torch.load(filepath, map_location=self.device)
+
+        self.policy_net.load_state_dict(checkpoint["policy_net"])
+        self.target_net.load_state_dict(checkpoint["target_net"])
+
+        if "optimizer" in checkpoint:
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+
+        if "epsilon" in checkpoint:
+            self.epsilon = checkpoint["epsilon"]
+
+        if "episode_count" in checkpoint:
+            self.episode_count = checkpoint["episode_count"]
 
     def save(self, filepath):
         torch.save({
