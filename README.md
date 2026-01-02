@@ -1,293 +1,69 @@
-# Snake Reinforcement Learning: DQN Implementation
+# Comparative Analysis of State Representations for Deep Q-Learning in Snake Game
 
-**Comparative Analysis of State Representations for Deep Q-Learning in Snake Game**
+A comprehensive empirical study comparing **feature-engineered** vs. **CNN-based** state representations for Deep Q-Network (DQN) agents in the Snake game.
 
-This project investigates how different state representations (feature-based vs. CNN-based) affect the performance and training efficiency of Deep Q-Network (DQN) agents playing Snake.
+**Research Question**: How do different state representations affect DQN performance, training efficiency, and learned strategies in fully-observable game environments?
 
----
-
-## 🎯 Research Questions
-
-1. **RQ1 (Primary)**: How do different state representations (feature-based vs. CNN-based) affect the performance and training efficiency of DQN agents in Snake?
-2. **RQ2 (Baseline)**: How does DQN performance compare to human baseline performance?
-3. **RQ3 (Progression)**: What qualitative strategies emerge at different training stages, and how do they differ between representations?
+**Key Finding**: Feature-engineered representations achieve **7.4× superhuman performance** (mean score 18.5 vs human 2.5), while CNN agents fail to learn (score 0.05), demonstrating that domain knowledge dramatically accelerates learning in small-scale environments.
 
 ---
 
-## 🧠 What's Implemented
+## 📋 Contents
 
-### 1. Feature-Based DQN Agent (DQN-Feature)
-
-**State Representation**: 11-feature vector capturing strategic information:
-
-| Features | Description | Range |
-|----------|-------------|-------|
-| `[0-1]` food_dx, food_dy | Relative food position | [-2, 2] |
-| `[2-4]` danger_left, danger_front, danger_right | Binary collision sensors | {0, 1} |
-| `[5-8]` direction (L/R/U/D) | One-hot current direction | {0, 1} |
-| `[9]` snake_length_normalized | Length / max_possible_length | [0, 1] |
-| `[10]` steps_normalized | Episode progress | [0, 1] |
-
-**Why this works**: 
-- Abstracts spatial relationships into engineered features
-- Enables fast learning (no need to learn spatial patterns from scratch)
-- Markov property: 11 numbers contain sufficient information for optimal decisions
-
-### 2. Deep Q-Network Architecture
-
-**Neural Network**:
-```
-Input Layer (11 features)
-    ↓
-Dense Layer (128 neurons) + ReLU
-    ↓
-Dense Layer (128 neurons) + ReLU
-    ↓
-Output Layer (4 Q-values: LEFT, RIGHT, UP, DOWN)
-```
-
-**Key DQN Components**:
-
-1. **Experience Replay Buffer**
-   - Capacity: 10,000 experiences
-   - Stores: (state, action, reward, next_state, done)
-   - Sampling: Random batches of 64
-   - **Why?** Breaks temporal correlations, stabilizes learning
-
-2. **Target Network**
-   - Frozen copy of policy network
-   - Updated every 100 episodes
-   - **Why?** Prevents "moving target" problem in Q-learning
-
-3. **ε-Greedy Exploration**
-   - Start: ε = 1.0 (100% random exploration)
-   - Decay: Linear over 5,000 episodes
-   - End: ε = 0.1 (10% exploration, 90% exploitation)
-   - **Why?** Balances exploration vs. exploitation
-
-4. **Q-Learning Update**
-   ```python
-   Target = reward + γ * max Q_target(next_state, action')
-   Loss = MSE(Q_policy(state, action), Target)
-   ```
-   - Discount factor: γ = 0.95
-   - Learning rate: 0.001 (Adam optimizer)
-
-### 3. Reward Structure
-
-| Event | Reward | Rationale |
-|-------|--------|-----------|
-| Food eaten | +10.0 | Strong positive reinforcement |
-| Wall collision | -10.0 | Terminal penalty |
-| Self collision | -10.0 | Terminal penalty |
-| Each step | -0.01 | Encourages efficiency |
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [Implementation Details](#-implementation-details)
+- [Recreating Findings](#-recreating-findings)
+- [Results Summary](#-results-summary)
+- [References](#-references)
 
 ---
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-```bash
-python >= 3.8
-```
+## 🚀 Quick Start
 
 ### Installation
 
-1. **Clone and navigate**:
 ```bash
+# Clone repository
 cd snake_genetic_algorithm
-```
 
-2. **Create virtual environment**:
-```bash
+# Create and activate virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On macOS/Linux
-# venv\Scripts\activate   # On Windows
-```
+source venv/bin/activate
 
-3. **Install dependencies**:
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-Required packages:
-- `pygame >= 2.5.0` - Game rendering
-- `numpy >= 1.24.0` - Numerical operations
-- `torch >= 2.0.0` - Neural networks
-- `matplotlib >= 3.7.0` - Plotting (future)
-- `scikit-learn >= 1.3.0` - Analysis (future)
+**Requirements**:
+- Python 3.8+
+- PyTorch 2.0+
+- NumPy 1.24+
+- Pygame 2.5+
+- Matplotlib 3.7+
 
----
-
-## 🏃 Running Training
-
-### Quick Test (1,000 episodes, ~5-10 minutes)
-
-Current configuration trains for 1,000 episodes:
+### Train Feature-Based Agent (5,000 episodes)
 
 ```bash
-python -m src.train_dqn_feature
+python -m src.training.train_dqn_feature
 ```
 
-**Expected output**:
-```
-Using device: cpu
-Starting training with seed 42
-Total episodes: 1000
-Epsilon decay: 1.0 -> 0.1 over 5000 episodes
-
-Episode 100/1000 | Score: 0 | Avg Score (100): 0.07 | Epsilon: 0.982 | Loss: 0.1061
-Episode 200/1000 | Score: 0 | Avg Score (100): 0.09 | Epsilon: 0.964 | Loss: 0.2496
-...
-Episode 1000/1000 | Score: 0 | Avg Score (100): 0.28 | Epsilon: 0.820 | Loss: 0.1104
-
-=== Evaluation at episode 1000 ===
-Mean Score: 9.03 ± 3.98
-Max Score: 18
-Mean Survival: 777.83
-```
-
-### Full Training (10,000 episodes, ~1-2 hours)
-
-1. **Edit configuration**:
-```bash
-# In src/config.py
-TOTAL_EPISODES = 10000
-```
-
-2. **Run training**:
-```bash
-python -m src.train_dqn_feature
-```
-
-### Configuration Options
-
-Edit [`src/config.py`](src/config.py) to customize:
-
-```python
-# Environment
-GRID_SIZE = 30  # Grid dimensions (30x30)
-MAX_STEPS_PER_EPISODE = 1000  # Prevent infinite loops
-
-# Training
-TOTAL_EPISODES = 10000
-EVAL_INTERVAL = 1000  # Evaluate every N episodes
-EVAL_EPISODES = 100  # Games per evaluation
-RANDOM_SEEDS = [42, 123, 456]  # Multiple runs for statistical validity
-
-# Hyperparameters
-BATCH_SIZE = 64
-REPLAY_BUFFER_SIZE = 10000
-LEARNING_RATE = 0.001
-GAMMA = 0.95
-TARGET_UPDATE_FREQUENCY = 100
-
-# Exploration
-EPSILON_START = 1.0
-EPSILON_END = 0.1
-EPSILON_DECAY_EPISODES = 5000
-```
-
----
-
-## 📊 Output and Results
-
-### Directory Structure
-
-```
-results/
-└── dqn_feature/
-    ├── dqn_feature_seed42_results.json    # Training metrics
-    ├── dqn_feature_seed123_results.json
-    ├── dqn_feature_seed456_results.json
-    └── checkpoints/
-        ├── dqn_feature_seed42_ep1000.pt   # Model checkpoints
-        ├── dqn_feature_seed123_ep1000.pt
-        └── dqn_feature_seed456_ep1000.pt
-```
-
-### Results JSON Format
-
-```json
-{
-  "seed": 42,
-  "episode_scores": [0, 1, 0, 2, ...],  // Per-episode training scores
-  "episode_steps": [23, 45, 12, ...],   // Steps per episode
-  "evaluations": [
-    {
-      "episode": 1000,
-      "mean_score": 9.03,
-      "std_score": 3.98,
-      "max_score": 18,
-      "min_score": 0,
-      "mean_survival": 777.83,
-      "std_survival": 245.12
-    }
-  ],
-  "config": {
-    "batch_size": 64,
-    "learning_rate": 0.001,
-    "gamma": 0.95,
-    ...
-  }
-}
-```
-
-### Interpreting Results
-
-**Training Metrics** (logged every 100 episodes):
-- **Score**: Number of food items eaten this episode
-- **Avg Score (100)**: Rolling average over last 100 episodes
-- **Epsilon**: Current exploration rate (1.0 → 0.1)
-- **Loss**: Magnitude of TD-error (should stabilize over time)
-
-**Evaluation Metrics** (every 1,000 episodes, ε=0):
-- **Mean Score**: Average performance over 100 greedy test games
-- **Max Score**: Best game during evaluation
-- **Mean Survival**: Average steps before death (max 1,000)
-
-**Expected Learning Trajectory**:
-- Episodes 1-1000: Avg score 0.05 → 0.3, eval mean ~2-9
-- Episodes 1000-5000: Rapid improvement as ε decays, eval mean ~10-20
-- Episodes 5000-10000: Refinement with ε=0.1, eval mean ~15-25+
-
----
-
-## 🧪 Testing
-
-Verify installation and setup:
+### Train CNN Agent (5,000 episodes)
 
 ```bash
-python test_dqn_setup.py
+python -m src.training.train_dqn_cnn
 ```
 
-This runs 12 unit tests covering:
-- Environment creation and state representation
-- Replay buffer operations
-- DQN agent initialization and action selection
-- Mini training loop (20 episodes)
+### Evaluate All Agents
 
-**Expected output**:
+```bash
+python -m src.evaluate_agents
 ```
-============================================================
-Testing DQN Setup
-============================================================
 
-1. Testing environment import...
-   ✓ SnakeEnvironment imported successfully
+### Generate Visualizations
 
-2. Testing environment creation...
-   ✓ Environment created successfully
-   - Grid size: 30x30
-   - State shape: (11,)
-   - Num actions: 4
-
-...
-
-============================================================
-✓ ALL TESTS PASSED!
-============================================================
+```bash
+python -m src.plot_results
 ```
 
 ---
@@ -295,177 +71,235 @@ Testing DQN Setup
 ## 📁 Project Structure
 
 ```
-snake_genetic_algorithm/
-├── README.md                 # This file
-├── requirments.txt           # Python dependencies
-├── test_dqn_setup.py        # Unit tests
-│
+.
+├── README.md
+├── requirements.txt
 ├── src/
-│   ├── __init__.py
-│   ├── config.py            # Hyperparameters and settings
-│   ├── replay_buffer.py     # Experience replay implementation
-│   ├── train_dqn_feature.py # Training script (feature-based)
-│   │
+│   ├── config.py                    # Hyperparameter configuration
+│   ├── evaluate_agents.py           # Unified evaluation script
+│   ├── human_baseline.py            # Interactive human baseline
+│   ├── plot_results.py              # Generate visualizations
+│   ├── replay_buffer.py             # Experience replay
 │   ├── agents/
-│   │   ├── __init__.py
-│   │   ├── dqn_feature.py   # DQN agent with feature state
-│   │   └── random_agent.py  # Baseline random agent
-│   │
-│   └── environment/
-│       ├── __init__.py
-│       ├── snake_env.py     # RL environment wrapper
-│       └── snake_game.py    # Core Snake game logic
-│
-└── results/
-    └── dqn_feature/         # Training outputs
-        ├── *.json           # Metrics
-        └── checkpoints/     # Model weights
+│   │   ├── dqn_feature.py          # Feature-based DQN
+│   │   ├── dqn_cnn.py              # CNN-based DQN
+│   │   └── random_agent.py         # Random baseline
+│   ├── environment/
+│   │   ├── snake_env.py            # RL environment wrapper
+│   │   └── snake_game.py           # Core game logic
+│   ├── evaluation/
+│   │   ├── play_random_agent.py
+│   │   ├── play_trained_agent.py
+│   │   └── play_trained_feature.py
+│   └── training/
+│       ├── train_dqn_feature.py    # Feature agent training
+│       └── train_dqn_cnn.py        # CNN agent training
+├── report/
+│   ├── paper.tex                   # 5-page research paper
+│   └── figures/
+│       ├── learning_curves.png
+│       ├── comparison.png
+│       └── survival.png
+├── results/
+│   ├── dqn_feature/
+│   ├── dqn_cnn/
+│   └── eval/
+└── notebooks/
+    └── snake_game.ipynb
 ```
 
 ---
 
-## 📈 Current Results (1,000 Episodes)
+## 🧠 State Representations
 
-**Seed 42**:
-- Mean Score: **9.03 ± 3.98**
-- Max Score: **18**
-- Mean Survival: **777.83 steps**
+### Feature-Based (DQN-Feature)
 
-**Seed 123**:
-- Mean Score: **5.89 ± 4.22**
-- Max Score: **17**
-- Mean Survival: **869.78 steps**
+**10-dimensional vector**:
 
-**Seed 456**:
-- Mean Score: **2.08 ± 2.61**
-- Max Score: **12**
-- Mean Survival: **949.14 steps**
+| # | Feature | Range |
+|---|---------|-------|
+| 1-2 | Relative food position (X, Y) | [-2, 2] |
+| 3-5 | Collision threat (left, front, right) | {0, 1} |
+| 6-9 | Direction one-hot (up, down, left, right) | {0, 1} |
+| 10 | Normalized snake length | [0, 1] |
 
-**Analysis**:
-- ✅ Learning is happening (training scores improved 0.07 → 0.28-0.41)
-- ✅ Generalization works (evaluation with ε=0 shows non-trivial strategies)
-- ✅ Variance across seeds demonstrates need for multi-seed protocol
-- ⏳ Full performance pending 10K episodes (only 1K/10K complete, ε still 0.82)
+**Architecture**: 10 → 128 → 128 → 4 (18K parameters)
 
----
+**Results**: Mean score **18.5** (7.4× human baseline)
 
-## 🔬 Algorithm Details
+### CNN-Based (DQN-CNN)
 
-### DQN Q-Learning Update
+**3-channel 30×30 grid**:
+- Channel 0: Snake body
+- Channel 1: Snake head
+- Channel 2: Food
 
-At each timestep:
+**Architecture**: Conv layers + Flatten + FC (320K parameters)
 
-1. **Observe** state `s`
-2. **Select** action `a` using ε-greedy policy
-3. **Execute** action, observe reward `r` and next state `s'`
-4. **Store** transition `(s, a, r, s', done)` in replay buffer
-5. **Sample** random batch of 64 transitions
-6. **Compute** target values:
-   ```
-   y = r                           if done
-   y = r + γ * max_a' Q_target(s', a')  otherwise
-   ```
-7. **Update** policy network:
-   ```
-   Loss = MSE(Q_policy(s, a), y)
-   θ ← θ - α∇Loss
-   ```
-8. **Update** target network every 100 episodes:
-   ```
-   θ_target ← θ_policy
-   ```
-
-### Feature Engineering Rationale
-
-Each feature serves a specific strategic purpose:
-
-1. **Food Direction** (`food_dx`, `food_dy`): Navigate toward goal
-2. **Danger Sensors** (left/front/right): Avoid immediate collisions
-3. **Current Direction**: Prevent 180° turns, maintain momentum
-4. **Snake Length**: Adjust strategy as snake grows (more cautious)
-5. **Episode Progress**: Encourage time-efficient strategies
-
-This abstraction allows the agent to learn policies like:
-- "If food is ahead and no danger front, go forward"
-- "If danger on all sides except left, turn left"
-- "If snake is long, prioritize safety over aggressive food-seeking"
+**Results**: Mean score **0.05** (fails to learn)
 
 ---
 
-## 🚧 Next Steps
+## 🔬 Recreating Findings
 
-### Immediate (In Progress)
-- [x] Implement feature-based DQN agent
-- [x] Run training with 3 random seeds
-- [x] Save checkpoints and evaluation metrics
-- [ ] Complete full 10,000 episode training
+### 1. Configure Training
 
-### Research Implementation
-- [ ] **DQN-CNN**: Implement CNN-based agent (RQ1)
-  - 30×30×3 grid state (snake body, head, food channels)
-  - Convolutional architecture (3 conv layers + FC)
-  - Compare learning efficiency vs. feature-based
-  
-- [ ] **Human Baseline**: Collect human performance data (RQ2)
-  - 5 players × 10 games each
-  - Record scores and strategies
-  - Establish performance benchmark
+Edit `src/config.py`:
+```python
+TOTAL_EPISODES = 5000
+EVAL_INTERVAL = 1000
+EVAL_EPISODES = 100
+RANDOM_SEEDS = [42, 123, 456]
+```
 
-- [ ] **Random Agent**: Run baseline experiments
-  - Control condition for comparison
-  - Expected: ~0.05 mean score
+### 2. Train Feature Agent
 
-- [ ] **Evaluation Suite**: Unified evaluation across all agents
-  - 100 episodes per agent with ε=0
-  - Statistical comparison (mean, variance, max score)
-  - Qualitative strategy analysis
+```bash
+python -m src.training.train_dqn_feature
+```
 
-### Analysis and Paper
-- [ ] Generate learning curves and comparison plots
-- [ ] Statistical significance testing (t-tests, ANOVA)
-- [ ] Qualitative strategy analysis at different training stages
-- [ ] Write LaTeX research paper with results
+**Expected**: 
+- Seed 42: 21.4
+- Seed 123: 21.0
+- Seed 456: 13.0
+- Mean: **18.5 ± 4.7**
+- vs Human (2.5): **7.4×**
+
+### 3. Train CNN Agent
+
+```bash
+python -m src.training.train_dqn_cnn
+```
+
+**Expected**: ~0.05 (no learning)
+
+### 4. Evaluate & Visualize
+
+```bash
+python -m src.evaluate_agents
+python -m src.plot_results
+```
+
+### 5. Build Paper
+
+```bash
+cd report && pdflatex paper.tex
+```
 
 ---
 
-## 🎓 Research Hypothesis
+## 📊 Results
 
-**Expected Results**:
-1. **Performance Hierarchy**: DQN-CNN > DQN-Feature > Random
-2. **Training Efficiency**: DQN-Feature learns faster initially, DQN-CNN achieves higher final performance
-3. **Human Comparison**: DQN agents approach/surpass average human performance within training budget
-4. **Emergent Behaviors**: 
-   - DQN-CNN: Spatially-aware, context-dependent strategies
-   - DQN-Feature: Rule-like, predictable behaviors
+| Metric | Feature | CNN | Human | Random |
+|--------|---------|-----|-------|--------|
+| Score | **18.5 ± 4.7** | 0.05 | 2.5 | 0.08 |
+| Max | 46 | 1 | --- | 1 |
+| Survival | 629 ± 143 | 408 | ~1000 | 380 |
+| vs Human | **7.4×** | 0.02× | 1.0× | 0.03× |
 
-**Contingency Plans**:
-- If training too slow: Reduce grid to 20×20
-- If DQN struggles: Implement Double DQN variant
-- If human baseline difficult: Use pre-recorded gameplay
+### Learning Phases
+
+| Phase | Episodes | Behavior | Score |
+|-------|----------|----------|-------|
+| Exploration | 0–1,500 | Random, no learning | < 0.5 |
+| Rapid Learning | 1,500–3,500 | Food-seeking emerges | 2–3 |
+| Mastery | 3,500–5,000 | Path-planning | > 10 |
+
+---
+
+## 🎯 Research Questions
+
+1. **RQ1 (Primary)**: How do different state representations affect DQN performance and training efficiency?
+2. **RQ2 (Baseline)**: How does DQN performance compare to human baseline?
+3. **RQ3 (Progression)**: What qualitative strategies emerge at different training stages?
+
+---
+
+## 🏗️ Implementation Details
+
+### DQN Components
+
+**Experience Replay**:
+- Capacity: 10,000 experiences
+- Batch: 64 samples
+- Purpose: Decorrelates temporal data
+
+**Target Network**:
+- Frozen policy copy
+- Update: Every 100 episodes
+- Purpose: Stabilizes learning
+
+**ε-Greedy Exploration**:
+- Start: 1.0 → End: 0.1
+- Decay: 5,000 episodes
+- Purpose: Balance exploration/exploitation
+
+**Q-Learning Update**:
+```
+Target = reward + γ × max Q_target(s', a')
+Loss = MSE(Q_policy(s, a), Target)
+```
+
+### Reward Structure
+
+| Event | Reward |
+|-------|--------|
+| Food | +10 |
+| Collision | -10 |
+| Step | -0.01 |
+
+---
+
+## 🔧 Configuration
+
+Edit `src/config.py`:
+
+```python
+TOTAL_EPISODES = 5000
+EVAL_INTERVAL = 1000
+EVAL_EPISODES = 100
+BATCH_SIZE = 64
+REPLAY_BUFFER_SIZE = 10000
+LEARNING_RATE = 0.001
+GAMMA = 0.95
+TARGET_UPDATE_FREQUENCY = 100
+EPSILON_START = 1.0
+EPSILON_END = 0.1
+EPSILON_DECAY_EPISODES = 5000
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+python test_dqn_setup.py       # Unit tests
+python test_dqn_cnn_setup.py   # CNN tests
+```
 
 ---
 
 ## 📚 References
 
-**Core Algorithm**:
-- Mnih et al. (2015). "Human-level control through deep reinforcement learning." *Nature*
-- Van Hasselt et al. (2016). "Deep Reinforcement Learning with Double Q-learning." *AAAI*
-
-**Implementation**:
-- PyTorch DQN Tutorial: https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
-- Sutton & Barto (2018). *Reinforcement Learning: An Introduction*
-
----
-
-## 🤝 Contributing
-
-This is a research project. For questions or collaboration:
-- Review code in `src/` directory
-- Check `test_dqn_setup.py` for usage examples
-- Refer to `src/config.py` for all tunable parameters
+1. Mnih et al. (2013). Playing Atari with Deep RL. *arXiv:1312.5602*
+2. Watkins & Dayan (1992). Q-learning. *Machine Learning*, 8(3-4)
+3. Lin (1992). Self-improving Reactive Agents. *Machine Learning*, 8(3)
+4. Van Hasselt et al. (2016). Double Q-learning. *AAAI* 16
+5. Krizhevsky et al. (2012). ImageNet CNNs. *NIPS*
+6. Sharma et al. (2017). Autonomous Snake Game DQN. *arXiv:1712.07124*
+7. Silver et al. (2016). Mastering Go. *Nature*, 529(7587)
+8. Françoise-Lavet et al. (2018). Introduction to Deep RL. *FnT Machine Learning*
+9. Botvinick et al. (2020). RL Fast and Slow. *Trends Cog Sci*, 23(5)
+10. Sutton & Barto (2018). *RL: An Introduction* (2nd ed.). MIT Press
 
 ---
 
-## 📝 License
+## 👥 Authors
 
-Research project - December 2025
+**Sofie Amalie Roer Thorlund** & **Viktor Mekis Bach**
+
+Academic Research Project, 2026
+
+---
+
+**Last Updated**: January 2, 2026
