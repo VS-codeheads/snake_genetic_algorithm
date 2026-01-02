@@ -15,7 +15,6 @@ A comprehensive empirical study comparing **feature-engineered** vs. **CNN-based
 - [Implementation Details](#-implementation-details)
 - [Recreating Findings](#-recreating-findings)
 - [Results Summary](#-results-summary)
-- [References](#-references)
 
 ---
 
@@ -207,14 +206,6 @@ cd report && pdflatex paper.tex
 
 ---
 
-## 🎯 Research Questions
-
-1. **RQ1 (Primary)**: How do different state representations affect DQN performance and training efficiency?
-2. **RQ2 (Baseline)**: How does DQN performance compare to human baseline?
-3. **RQ3 (Progression)**: What qualitative strategies emerge at different training stages?
-
----
-
 ## 🏗️ Implementation Details
 
 ### DQN Components
@@ -273,24 +264,9 @@ EPSILON_DECAY_EPISODES = 5000
 ## 🧪 Testing
 
 ```bash
-python test_dqn_setup.py       # Unit tests
+python test_dqn_setup.py       # Feature based
 python test_dqn_cnn_setup.py   # CNN tests
 ```
-
----
-
-## 📚 References
-
-1. Mnih et al. (2013). Playing Atari with Deep RL. *arXiv:1312.5602*
-2. Watkins & Dayan (1992). Q-learning. *Machine Learning*, 8(3-4)
-3. Lin (1992). Self-improving Reactive Agents. *Machine Learning*, 8(3)
-4. Van Hasselt et al. (2016). Double Q-learning. *AAAI* 16
-5. Krizhevsky et al. (2012). ImageNet CNNs. *NIPS*
-6. Sharma et al. (2017). Autonomous Snake Game DQN. *arXiv:1712.07124*
-7. Silver et al. (2016). Mastering Go. *Nature*, 529(7587)
-8. Françoise-Lavet et al. (2018). Introduction to Deep RL. *FnT Machine Learning*
-9. Botvinick et al. (2020). RL Fast and Slow. *Trends Cog Sci*, 23(5)
-10. Sutton & Barto (2018). *RL: An Introduction* (2nd ed.). MIT Press
 
 ---
 
